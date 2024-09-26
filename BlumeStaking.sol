@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -23,9 +23,9 @@ contract BlumeStaking is Ownable, ReentrancyGuard{
     }
 
     // Purchase BLS tokens 
-    // At the momemt user can but tokens without ether.
+    // At the momemt user can buy tokens without ether.
     function buyTokens( uint tokens) external payable {
-        require(tokens > 0, "buy tokens should be greater thab0");
+        require(tokens > 0, "buy tokens should be greater than 0");
         blsToken.buyTokens(msg.sender, tokens);
         emit TokensPurchased(msg.sender, tokens);
     }
@@ -55,7 +55,7 @@ contract BlumeStaking is Ownable, ReentrancyGuard{
         stakedBLSToken.burn(msg.sender, amount);
 
         // Transfer BLS tokens back to the user
-        blsToken.transfer(msg.sender, amount);
+        blsToken.transferToken(address(this),msg.sender,amount);
 
         // Update the user's staked balance
         stakedBalances[msg.sender] -= amount;
