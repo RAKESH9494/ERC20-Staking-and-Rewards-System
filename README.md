@@ -10,20 +10,23 @@ The `BLSToken` contract represents the native cryptocurrency token (`BLS`) used 
   - **Transfer Function**: Transfers tokens between addresses.
 
 ```solidity
-contract BLSToken is ERC20, Ownable {
+contract BLSToken is ERC20, Ownable{
     constructor() ERC20("Blume Liquid Staking", "BLS") Ownable(msg.sender) {
-        _mint(address(this), 1000); // Initial supply to the owner
+        _mint(address(this), 1000*(10 ** decimals())); // Initial supply 
     }
 
-    function buyTokens(address to, uint256 amount) external {
+    // Buy BLS tokens 
+    function buyTokens(address to, uint256 amount) external{
         require(balanceOf(address(this)) >= amount, "Not enough tokens in contract");
-        transferToken(address(this), to, amount); // Transfer tokens from owner to buyer
+        transferToken(address(this), to, amount); 
     }
 
-    function transferToken(address from, address to, uint amount) public {
-        _transfer(from, to, amount);
+    //Transfer tokens
+    function transferToken(address from, address to, uint amount) public  {
+        _transfer(from, to, amount*(10 ** decimals()));
     }
 }
+
 ```
 
 ---
@@ -39,18 +42,18 @@ The `StakedBLSToken` contract represents the staked version of the BLS token (`s
 
 ```solidity
 contract StakedBLSToken is ERC20 {
-    address public stakingContract;
-
     constructor() ERC20("Staked BLS", "stBLS") {
-        stakingContract = msg.sender;
+        _mint(address(this), 1000*(10 ** decimals())); // Initial supply 
     }
 
+    // Mint stBLS tokens 
     function mint(address to, uint256 amount) external {
-        _mint(to, amount);
+        _mint(to, amount*(10 ** decimals()));
     }
 
+    // Burn stBLS tokens 
     function burn(address from, uint256 amount) external {
-        _burn(from, amount);
+        _burn(from, amount*(10 ** decimals()));
     }
 }
 ```
@@ -69,7 +72,11 @@ The `BlumeStaking` contract manages the staking and unstaking process. Users sta
   - **Reentrancy Protection**: The contract uses OpenZeppelin's `ReentrancyGuard` to prevent reentrancy attacks.
 
 ```solidity
-contract BlumeStaking is Ownable, ReentrancyGuard {
+
+import "BLSToken.sol";
+import "StakedBLSToken.sol";
+// Blume Liquid Staking Contract with Token Purchase Mechanism
+contract BlumeStaking is Ownable, ReentrancyGuard{
     BLSToken public blsToken;
     StakedBLSToken public stakedBLSToken;
 
@@ -84,17 +91,20 @@ contract BlumeStaking is Ownable, ReentrancyGuard {
         stakedBLSToken = _stakedBLSToken;
     }
 
-    function buyTokens(uint tokens) external payable {
+    // Purchase BLS tokens 
+    // At the momemt user can buy tokens without ether.
+    function buyTokens( uint tokens) external payable {
         require(tokens > 0, "buy tokens should be greater than 0");
         blsToken.buyTokens(msg.sender, tokens);
         emit TokensPurchased(msg.sender, tokens);
     }
 
+    // Stake BLS tokens to receive stBLS
     function stake(uint256 amount) external nonReentrant {
         require(amount > 0, "Cannot stake 0 tokens");
 
         // Transfer BLS tokens from the user to the staking contract
-        blsToken.transferToken(msg.sender, address(this), amount);
+        blsToken.transferToken(msg.sender,address(this),amount);
 
         // Mint equivalent stBLS tokens to the user
         stakedBLSToken.mint(msg.sender, amount);
@@ -105,6 +115,7 @@ contract BlumeStaking is Ownable, ReentrancyGuard {
         emit Staked(msg.sender, amount);
     }
 
+    // Unstake BLS tokens by burning stBLS
     function unstake(uint256 amount) external nonReentrant {
         require(amount > 0, "Cannot unstake 0 tokens");
         require(stakedBalances[msg.sender] >= amount, "Insufficient staked balance");
@@ -113,7 +124,7 @@ contract BlumeStaking is Ownable, ReentrancyGuard {
         stakedBLSToken.burn(msg.sender, amount);
 
         // Transfer BLS tokens back to the user
-        blsToken.transfer(msg.sender, amount);
+        blsToken.transferToken(address(this),msg.sender,amount);
 
         // Update the user's staked balance
         stakedBalances[msg.sender] -= amount;
@@ -121,10 +132,12 @@ contract BlumeStaking is Ownable, ReentrancyGuard {
         emit Unstaked(msg.sender, amount);
     }
 
+    // Get staked balance of a user
     function stakedBalanceOf(address user) external view returns (uint256) {
         return stakedBalances[user];
     }
 }
+
 ```
 
 ---
